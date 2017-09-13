@@ -83,6 +83,7 @@ $f_change_type = gpc_get_string( 'change_type', BUG_UPDATE_TYPE_CHANGE_STATUS );
 $t_reopen = config_get( 'bug_reopen_status', null, null, $t_bug->project_id );
 $t_resolved = config_get( 'bug_resolved_status_threshold', null, null, $t_bug->project_id );
 $t_closed = config_get( 'bug_closed_status_threshold', null, null, $t_bug->project_id );
+$t_resolution_fixed = config_get( 'bug_resolution_fixed_threshold', null, null, $t_bug->project_id );
 $t_current_user_id = auth_get_current_user_id();
 
 # Ensure user has proper access level before proceeding
@@ -96,22 +97,15 @@ if( $f_new_status == $t_reopen && $f_change_type == BUG_UPDATE_TYPE_REOPEN ) {
 }
 
 $t_can_update_due_date = access_has_bug_level( config_get( 'due_date_update_threshold' ), $f_bug_id );
-if( $t_can_update_due_date ) {
-	require_js( 'jscalendar/calendar.js' );
-	require_js( 'jscalendar/lang/calendar-en.js' );
-	require_js( 'jscalendar/calendar-setup.js' );
-	require_css( 'calendar-blue.css' );
-}
 
 # get new issue handler if set, otherwise default to original handler
 $f_handler_id = gpc_get_int( 'handler_id', $t_bug->handler_id );
 
 if( config_get( 'bug_assigned_status' ) == $f_new_status ) {
-	$t_bug_sponsored = sponsorship_get_amount( sponsorship_get_all_ids( $f_bug_id ) ) > 0;
-	if( $t_bug_sponsored ) {
-		if( !access_has_bug_level( config_get( 'assign_sponsored_bugs_threshold' ), $f_bug_id ) ) {
-			trigger_error( ERROR_SPONSORSHIP_ASSIGNER_ACCESS_LEVEL_TOO_LOW, ERROR );
-		}
+	$t_bug_sponsored = config_get( 'enable_sponsorship' )
+		&& sponsorship_get_amount( sponsorship_get_all_ids( $f_bug_id ) ) > 0;
+	if( $t_bug_sponsored && !access_has_bug_level( config_get( 'assign_sponsored_bugs_threshold' ), $f_bug_id ) ) {
+		trigger_error( ERROR_SPONSORSHIP_ASSIGNER_ACCESS_LEVEL_TOO_LOW, ERROR );
 	}
 
 	if( $f_handler_id != NO_USER ) {
@@ -119,61 +113,67 @@ if( config_get( 'bug_assigned_status' ) == $f_new_status ) {
 			trigger_error( ERROR_HANDLER_ACCESS_TOO_LOW, ERROR );
 		}
 
-		if( $t_bug_sponsored ) {
-			if( !access_has_bug_level( config_get( 'handle_sponsored_bugs_threshold' ), $f_bug_id, $f_handler_id ) ) {
-				trigger_error( ERROR_SPONSORSHIP_HANDLER_ACCESS_LEVEL_TOO_LOW, ERROR );
-			}
+		if( $t_bug_sponsored && !access_has_bug_level( config_get( 'handle_sponsored_bugs_threshold' ), $f_bug_id, $f_handler_id ) ) {
+			trigger_error( ERROR_SPONSORSHIP_HANDLER_ACCESS_LEVEL_TOO_LOW, ERROR );
 		}
 	}
 }
 
 $t_status_label = str_replace( ' ', '_', MantisEnum::getLabel( config_get( 'status_enum_string' ), $f_new_status ) );
 
-html_page_top( bug_format_summary( $f_bug_id, SUMMARY_CAPTION ) );
+layout_page_header( bug_format_summary( $f_bug_id, SUMMARY_CAPTION ) );
 
-print_recently_visited();
+layout_page_begin();
 ?>
 
-<br />
-<div id="bug-change-status-div" class="form-container">
+<div class="col-md-12 col-xs-12">
 
-<h2><?php echo lang_get( $t_status_label . '_bug_title' ); ?></h2>
-<?php
-	if( $f_new_status >= $t_resolved ) {
-		if( relationship_can_resolve_bug( $f_bug_id ) == false ) {
-			echo '<div class="footer">';
-			echo lang_get( 'relationship_warning_blocking_bugs_not_resolved_2' );
-			echo '</div>';
-		}
-	}
-?>
+	<div id="bug-change-status-div" class="form-container">
+	<form id="bug-change-status-form" name="bug_change_status_form" method="post" action="bug_update.php">
 
-<form id="bug-change-status-form" name="bug_change_status_form" method="post" action="bug_update.php">
-
-<fieldset>
+	<fieldset>
 
 	<?php echo form_security_field( 'bug_update' ) ?>
+	<div class="widget-box widget-color-blue2">
+	<div class="widget-header widget-header-small">
+		<h4 class="widget-title lighter">
+			<?php echo lang_get( $t_status_label . '_bug_title' ) ?>
+		</h4>
+	</div>
 
-	<input type="hidden" name="bug_id" value="<?php echo $f_bug_id ?>" />
-	<input type="hidden" name="status" value="<?php echo $f_new_status ?>" />
-	<input type="hidden" name="last_updated" value="<?php echo $t_bug->last_updated ?>" />
-	<input type="hidden" name="action_type" value="<?php echo $f_change_type; ?>" />
+	<div class="widget-body">
+	<div class="widget-main no-padding">
 
+	<div class="table-responsive">
+	<table class="table table-bordered table-condensed table-striped">
+		<thead>
+			<input type="hidden" name="bug_id" value="<?php echo $f_bug_id ?>" />
+			<input type="hidden" name="status" value="<?php echo $f_new_status ?>" />
+			<input type="hidden" name="last_updated" value="<?php echo $t_bug->last_updated ?>" />
+			<?php
+				if( $f_new_status >= $t_resolved ) {
+					if( relationship_can_resolve_bug( $f_bug_id ) == false ) {
+						echo '<tr><td colspan="2">' . lang_get( 'relationship_warning_blocking_bugs_not_resolved_2' ) . '</td></tr>';
+					}
+				}
+			?>
+		</thead>
+		<tbody>
 <?php
 	$t_current_resolution = $t_bug->resolution;
-	$t_bug_is_open = $t_current_resolution < $t_resolved;
+	$t_bug_resolution_is_fixed = $t_current_resolution >= $t_resolution_fixed;
 
-	if( ( $f_new_status >= $t_resolved ) && ( ( $f_new_status < $t_closed ) || ( $t_bug_is_open ) ) ) {
+	if( $f_new_status >= $t_resolved && ( $f_new_status < $t_closed || !$t_bug_resolution_is_fixed ) ) {
 ?>
-	<!-- Resolution -->
-	<div class="field-container">
-		<label for="resolution">
-			<span><?php echo lang_get( 'resolution' ) ?></span>
-		</label>
-		<span class="select">
- 			<select name="resolution">
-<?php
-				$t_resolution = $t_bug_is_open ? config_get( 'bug_resolution_fixed_threshold' ) : $t_current_resolution;
+<!-- Resolution -->
+			<tr>
+				<th class="category">
+					<?php echo lang_get( 'resolution' ) ?>
+				</th>
+				<td>
+					<select name="resolution" class="input-sm">
+			<?php
+				$t_resolution = $t_bug_resolution_is_fixed ? $t_current_resolution : $t_resolution_fixed;
 
 				$t_relationships = relationship_get_all_src( $f_bug_id );
 				foreach( $t_relationships as $t_relationship ) {
@@ -184,30 +184,25 @@ print_recently_visited();
 				}
 
 				print_enum_string_option_list( 'resolution', $t_resolution );
-?>
-			</select>
-		</span>
-		<span class="label-style"></span>
-	</div>
+			?>
+					</select>
+				</td>
+			</tr>
 <?php
-	}
-
-	if( $f_new_status >= $t_resolved
-		&& $f_new_status < $t_closed
-		&& $t_resolution != config_get( 'bug_duplicate_resolution' ) ) {
+		if( $t_resolution != config_get( 'bug_duplicate_resolution' ) ) {
 ?>
-	<!-- Duplicate ID -->
-	<div class="field-container">
-		<label for="duplicate_id">
-			<span><?php echo lang_get( 'duplicate_id' ) ?></span>
-		</label>
-		<span class="input">
- 			<input type="text" name="duplicate_id" maxlength="10" />
-		</span>
-		<span class="label-style"></span>
-	</div>
+<!-- Duplicate ID -->
+			<tr>
+				<th class="category">
+					<?php echo lang_get( 'duplicate_id' ) ?>
+				</th>
+				<td>
+					<input type="text" class="input-sm" name="duplicate_id" maxlength="10" />
+				</td>
+			</tr>
 
 <?php
+		}
 	}
 
 	if( access_has_bug_level( config_get( 'update_bug_assign_threshold', config_get( 'update_bug_threshold' ) ), $f_bug_id ) ) {
@@ -218,43 +213,41 @@ print_recently_visited();
 		}
 
 ?>
-	<!-- Assigned To -->
-	<div class="field-container">
-		<label for="handler_id">
-			<span><?php echo lang_get( 'assigned_to' ) ?></span>
-		</label>
-		<span class="select">
-			<select name="handler_id">
-				<option value="0"></option>
-				<?php print_assign_to_option_list( $t_suggested_handler_id, $t_bug->project_id ) ?>
-			</select>
-		</span>
-		<span class="label-style"></span>
-	</div>
+<!-- Assigned To -->
+			<tr>
+				<th class="category">
+					<?php echo lang_get( 'assigned_to' ) ?>
+				</th>
+				<td>
+					<select name="handler_id" class="input-sm">
+						<option value="0"></option>
+						<?php print_assign_to_option_list( $t_suggested_handler_id, $t_bug->project_id ) ?>
+					</select>
+				</td>
+			</tr>
+<?php } ?>
 
 <?php
-	}
-
-	if( true || $t_can_update_due_date ) {
+	if( $t_can_update_due_date ) {
 		$t_date_to_display = '';
 
 		if( !date_is_null( $t_bug->due_date ) ) {
-			$t_date_to_display = date( config_get( 'calendar_date_format' ), $t_bug->due_date );
+			$t_date_to_display = date( config_get( 'normal_date_format' ), $t_bug->due_date );
 		}
 ?>
 	<!-- Due date -->
-	<div class="field-container">
-		<label for="due_date">
-			<span><?php echo lang_get( 'due_date' ) ?></span>
-		</label>
-		<span class="input">
- 			<input type="text" id="due_date" name="due_date"
- 				class="datetime" size="20" maxlength="16"
- 				<?php helper_get_tab_index() ?>
- 				value="<?php echo $t_date_to_display ?>" />
-		</span>
-		<span class="label-style"></span>
-	</div>
+	<tr>
+		<th class="category">
+			<?php echo lang_get( 'due_date' ) ?>
+		</th>
+		<td>
+			<input type="text" id="due_date" name="due_date" class="datetimepicker input-sm" size="16" maxlength="16"
+				data-picker-locale="<?php lang_get_current_datetime_locale() ?>"
+				data-picker-format="<?php echo config_get( 'datetime_picker_format' ) ?>"
+				<?php helper_get_tab_index() ?> value="<?php echo $t_date_to_display ?>" />
+			<i class="fa fa-calendar fa-xlg datetimepicker"></i>
+		</td>
+	</tr>
 
 <?php
 	}
@@ -269,7 +262,7 @@ print_recently_visited();
 	 * display or required fields on resolve or close
 	 */
 	$t_custom_status_label = 'update'; # Don't show custom fields by default
-	if( ( $f_new_status == $t_resolved ) && ( $f_new_status < $t_closed ) ) {
+	if( ( $f_new_status >= $t_resolved ) && ( $f_new_status < $t_closed ) ) {
 		$t_custom_status_label = 'resolved';
 	}
 	if( $t_closed == $f_new_status ) {
@@ -290,23 +283,22 @@ print_recently_visited();
 			continue;
 		}
 		$t_has_write_access = custom_field_has_write_access( $t_id, $f_bug_id );
-		$t_class_required = $t_require && $t_has_write_access ? 'class="required"' : '';
 ?>
-	<div class="field-container">
-		<label <?php echo $t_class_required ?> for="due_date">
-			<span><?php echo lang_get_defaulted( $t_def['name'] ) ?></span>
-		</label>
-		<span class="input">
+	<tr>
+		<th class="category">
+			<?php if( $t_require && $t_has_write_access ) {?><span class="required">*</span><?php } ?>
+			<?php echo lang_get_defaulted( $t_def['name'] ) ?>
+		</th>
+		<td>
 <?php
 			if( $t_has_write_access ) {
-				print_custom_field_input( $t_def, $f_bug_id );
+				print_custom_field_input( $t_def, $f_bug_id, $t_require );
 			} elseif( custom_field_has_read_access( $t_id, $f_bug_id ) ) {
 				print_custom_field_value( $t_def, $t_id, $f_bug_id );
 			}
 ?>
-		</span>
-		<span class="label-style"></span>
-	</div>
+		</td>
+	</tr>
 
 <?php
 	} # foreach( $t_related_custom_field_ids as $t_id )
@@ -317,23 +309,22 @@ print_recently_visited();
 			&& access_has_bug_level( config_get( 'update_bug_threshold' ), $f_bug_id )
 		) {
 ?>
-	<!-- Fixed in Version -->
-	<div class="field-container">
-		<label for="due_date">
-			<span><?php echo lang_get( 'fixed_in_version' ) ?></span>
-		</label>
-		<span class="select">
-			<select name="fixed_in_version">
-				<?php print_version_option_list( $t_bug->fixed_in_version, $t_bug->project_id, VERSION_ALL ) ?>
-			</select>
-		</span>
-		<span class="label-style"></span>
-	</div>
+			<!-- Fixed in Version -->
+			<tr>
+				<th class="category">
+					<?php echo lang_get( 'fixed_in_version' ) ?>
+				</th>
+				<td>
+					<select name="fixed_in_version" class="input-sm">
+						<?php print_version_option_list( $t_bug->fixed_in_version, $t_bug->project_id, VERSION_ALL ) ?>
+					</select>
+				</td>
+			</tr>
 <?php
 		}
 	}
 
-	event_signal( 'EVENT_UPDATE_BUG_STATUS_FORM', array( $f_bug_id ) );
+	event_signal( 'EVENT_UPDATE_BUG_STATUS_FORM', array( $f_bug_id, $f_new_status ) );
 
 	if( $f_change_type == BUG_UPDATE_TYPE_REOPEN ) {
 ?>
@@ -342,77 +333,73 @@ print_recently_visited();
 		printf( '	<input type="hidden" name="resolution" value="%s" />' . "\n", config_get( 'bug_reopen_resolution' ) );
 	}
 ?>
-
-	<!-- Bugnote -->
-	<div class="field-container">
-		<label for="bugnote_text">
-			<span><?php echo lang_get( 'add_bugnote_title' ) ?></span>
-		</label>
-		<span class="textarea">
-			<textarea name="bugnote_text" cols="80" rows="10"></textarea>
-		</span>
-		<span class="label-style"></span>
-	</div>
-
+<?php if( access_has_bug_level( config_get( 'private_bugnote_threshold' ), $f_bug_id ) ) { ?>
+			<tr>
+				<th class="category">
+					<?php echo lang_get( 'view_status' ) ?>
+				</th>
+				<td>
 <?php
-	if( access_has_bug_level( config_get( 'private_bugnote_threshold' ), $f_bug_id ) ) {
 		$t_default_bugnote_view_status = config_get( 'default_bugnote_view_status' );
-?>
-	<!-- View status -->
-	<div class="field-container">
-		<label for="private">
-			<span><?php echo lang_get( 'view_status' ) ?></span>
-		</label>
-		<span class="checkbox">
-<?php
 		if( access_has_bug_level( config_get( 'set_view_status_threshold' ), $f_bug_id ) ) {
 ?>
-			<input type="checkbox" name="private"
+			<input type="checkbox" id="bugnote_add_view_status" class="ace" name="private"
 				<?php check_checked( $t_default_bugnote_view_status, VS_PRIVATE ); ?> />
+			<label class="lbl" for="bugnote_add_view_status"> <?php echo lang_get( 'private' ) ?> </label>
 <?php
-			echo lang_get( 'private' );
 		} else {
 			echo get_enum_element( 'project_view_state', $t_default_bugnote_view_status );
 		}
 ?>
-		</span>
-		<span class="label-style"></span>
-	</div>
-
+				</td>
+			</tr>
+<?php } ?>
+			<!-- Bugnote -->
+			<tr id="bug-change-status-note">
+				<th class="category">
+					<?php echo lang_get( 'add_bugnote_title' ) ?>
+				</th>
+				<td>
+					<textarea class="form-control" name="bugnote_text" id="bugnote_text" cols="80" rows="10"></textarea>
+				</td>
+			</tr>
 <?php
-	}
-
-	if(     config_get( 'time_tracking_enabled' )
+	if( config_get( 'time_tracking_enabled' )
 		&& access_has_bug_level( config_get( 'private_bugnote_threshold' ), $f_bug_id )
 		&& access_has_bug_level( config_get( 'time_tracking_edit_threshold' ), $f_bug_id )
 	) {
-?>
-	<!-- Time tracking -->
-	<div class="field-container">
-		<label for="time_tracking">
-			<span><?php echo lang_get( 'time_tracking' ) ?></span>
-		</label>
-		<span class="input">
-			<input type="text" name="time_tracking" size="5" placeholder="hh:mm" />
-		</span>
-		<span class="label-style"></span>
-	</div>
+	?>
+			<tr>
+				<th class="category">
+					<?php echo lang_get( 'time_tracking' ) ?>
+				</th>
+				<td>
+					<input type="text" name="time_tracking" class="input-sm" size="5" placeholder="hh:mm" />
+				</td>
+			</tr>
+
 <?php
 	}
 
 	event_signal( 'EVENT_BUGNOTE_ADD_FORM', array( $f_bug_id ) );
 ?>
 
-	<!-- Submit Button -->
-	<span class="submit-button">
-		<input type="submit" class="button" value="<?php echo lang_get( $t_status_label . '_bug_button' ) ?>" />
-	</span>
+</tbody>
+</table>
+<input type="hidden" name="action_type" value="<?php echo string_attribute( $f_change_type ); ?>" />
 
-</form>
 </div>
-
-<br>
-
+</div>
+<div class="widget-toolbox padding-8 clearfix">
+	<span class="required pull-right"> * <?php echo lang_get( 'required' ) ?></span>
+	<input type="submit" class="btn btn-primary btn-white btn-round" value="<?php echo lang_get( $t_status_label . '_bug_button' ) ?>" />
+</div>
+</div>
+</div>
+</div>
+</form>
+<div class="space-10"></div>
+</div>
 <?php
 define( 'BUG_VIEW_INC_ALLOW', true );
 include( dirname( __FILE__ ) . '/bug_view_inc.php' );

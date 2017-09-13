@@ -58,7 +58,10 @@ require_api( 'string_api.php' );
 require_api( 'user_pref_api.php' );
 require_api( 'utility_api.php' );
 
+# Cache of user rows from {user} table, indexed by user_id
+# If id does not exists, a value of 'false' is stored
 $g_cache_user = array();
+
 $g_user_accessible_subprojects_cache = null;
 
 /**
@@ -74,16 +77,15 @@ $g_user_accessible_subprojects_cache = null;
 function user_cache_row( $p_user_id, $p_trigger_errors = true ) {
 	global $g_cache_user;
 
-	if( isset( $g_cache_user[$p_user_id] ) ) {
-		return $g_cache_user[$p_user_id];
+	$c_user_id = (int)$p_user_id;
+
+	if( !isset( $g_cache_user[$c_user_id] ) ) {
+		user_cache_array_rows( array( $c_user_id ) );
 	}
 
-	$t_query = 'SELECT * FROM {user} WHERE id=' . db_param();
-	$t_result = db_query( $t_query, array( $p_user_id ) );
+	$t_user_row = $g_cache_user[$c_user_id];
 
-	if( 0 == db_num_rows( $t_result ) ) {
-		$g_cache_user[$p_user_id] = false;
-
+	if( !$t_user_row ) {
 		if( $p_trigger_errors ) {
 			error_parameters( (integer)$p_user_id );
 			trigger_error( ERROR_USER_BY_ID_NOT_FOUND, ERROR );
@@ -92,16 +94,12 @@ function user_cache_row( $p_user_id, $p_trigger_errors = true ) {
 		return false;
 	}
 
-	$t_row = db_fetch_array( $t_result );
-
-	$g_cache_user[$p_user_id] = $t_row;
-
-	return $t_row;
+	return $t_user_row;
 }
 
 /**
- * Generate an array of User objects from given User ID's
- *
+ * Loads user rows in cache for a set of User ID's
+ * Store false if the user does not exists
  * @param array $p_user_id_array An array of user identifiers.
  * @return void
  */
@@ -111,34 +109,41 @@ function user_cache_array_rows( array $p_user_id_array ) {
 
 	foreach( $p_user_id_array as $t_user_id ) {
 		if( !isset( $g_cache_user[(int)$t_user_id] ) ) {
-			$c_user_id_array[] = (int)$t_user_id;
+			$c_user_id_array[(int)$t_user_id] = (int)$t_user_id;
 		}
 	}
-
 	if( empty( $c_user_id_array ) ) {
 		return;
 	}
 
-	$t_query = 'SELECT * FROM {user} WHERE id IN (' . implode( ',', $c_user_id_array ) . ')';
-	$t_result = db_query( $t_query );
+	db_param_push();
+	$t_params = array();
+	$t_sql_in_params = array();
+	foreach( $c_user_id_array as $t_id ) {
+		$t_params[] = $t_id;
+		$t_sql_in_params[] = db_param();
+	}
+	$t_query = 'SELECT * FROM {user} WHERE id IN (' . implode( ',', $t_sql_in_params ) . ')';
+	$t_result = db_query( $t_query, $t_params );
 
 	while( $t_row = db_fetch_array( $t_result ) ) {
-		$g_cache_user[(int)$t_row['id']] = $t_row;
+		$c_user_id = (int)$t_row['id'];
+		$g_cache_user[$c_user_id] = $t_row;
+		unset( $c_user_id_array[$c_user_id] );
 	}
-	return;
+	# set the remaining ids to false as not-found
+	foreach( $c_user_id_array as $t_id ) {
+		$g_cache_user[$t_id] = false;
+	}
 }
 
 /**
- * Cache an object as a bug.
+ * Cache a user row
  * @param array $p_user_database_result A user row to cache.
- * @return array|null
+ * @return void
  */
 function user_cache_database_result( array $p_user_database_result ) {
 	global $g_cache_user;
-
-	if( isset( $g_cache_user[$p_user_database_result['id']] ) ) {
-		return $g_cache_user[$p_user_database_result['id']];
-	}
 
 	$g_cache_user[$p_user_database_result['id']] = $p_user_database_result;
 }
@@ -189,7 +194,7 @@ function user_search_cache( $p_field, $p_value ) {
 	global $g_cache_user;
 	if( isset( $g_cache_user ) ) {
 		foreach( $g_cache_user as $t_user ) {
-			if( $t_user[$p_field] == $p_value ) {
+			if( $t_user && $t_user[$p_field] == $p_value ) {
 				return $t_user;
 			}
 		}
@@ -236,6 +241,7 @@ function user_ensure_exists( $p_user_id ) {
  * @return boolean
  */
 function user_is_name_unique( $p_username ) {
+	db_param_push();
 	$t_query = 'SELECT username FROM {user} WHERE username=' . db_param();
 	$t_result = db_query( $t_query, array( $p_username ), 1 );
 
@@ -269,6 +275,7 @@ function user_is_email_unique( $p_email, $p_user_id = null ) {
 
 	$p_email = trim( $p_email );
 
+	db_param_push();
 	if ( $p_user_id === null ) {
 		$t_query = 'SELECT email FROM {user} WHERE email=' . db_param();
 		$t_result = db_query( $t_query, array( $p_email ), 1 );
@@ -329,6 +336,7 @@ function user_is_realname_unique( $p_username, $p_realname ) {
 		}
 
 		# check to see if the realname is unique
+		db_param_push();
 		$t_query = 'SELECT id FROM {user} WHERE realname=' . db_param();
 		$t_result = db_query( $t_query, array( $p_realname ) );
 
@@ -409,6 +417,7 @@ function user_ensure_name_valid( $p_username ) {
  * @return boolean
  */
 function user_is_monitoring_bug( $p_user_id, $p_bug_id ) {
+	db_param_push();
 	$t_query = 'SELECT COUNT(*) FROM {bug_monitor}
 				  WHERE user_id=' . db_param() . ' AND bug_id=' . db_param();
 
@@ -447,10 +456,7 @@ function user_is_administrator( $p_user_id ) {
  * @access public
  */
 function user_is_protected( $p_user_id ) {
-	if( user_is_anonymous( $p_user_id ) || ON == user_get_field( $p_user_id, 'protected' ) ) {
-		return true;
-	}
-	return false;
+	return user_is_anonymous( $p_user_id ) || ON == user_get_field( $p_user_id, 'protected' );
 }
 
 /**
@@ -462,10 +468,7 @@ function user_is_protected( $p_user_id ) {
  * @access public
  */
 function user_is_anonymous( $p_user_id ) {
-	if( ON == config_get( 'allow_anonymous_login' ) && user_get_field( $p_user_id, 'username' ) == config_get( 'anonymous_account' ) ) {
-		return true;
-	}
-	return false;
+	return auth_anonymous_enabled() && strcasecmp( user_get_username( $p_user_id ), auth_anonymous_account() ) == 0;
 }
 
 /**
@@ -497,24 +500,25 @@ function user_is_enabled( $p_user_id ) {
 /**
  * Count the number of users at or greater than a specific level
  *
- * @param integer $p_level Access Level to count users. The default is to include ANYBODY.
- * @param bool $p_enabled true: must be enabled, false: must be disabled, null: don't care.
+ * @param integer $p_level   Access Level to count users. The default is to include ANYBODY.
+ * @param bool    $p_enabled true: must be enabled, false: must be disabled, null: don't care.
  * @return integer The number of users.
  */
 function user_count_level( $p_level = ANYBODY, $p_enabled = null ) {
-	$t_query = 'SELECT COUNT(id) FROM {user} WHERE access_level>=' . db_param();
-	if( $p_enabled === true ) {
-		$t_query .= ' AND enabled = 1';
-	} else if( $p_enabled === false ) {
-		$t_query .= ' AND enabled = 0';
+	db_param_push();
+	$t_query = 'SELECT COUNT(id) FROM {user} WHERE access_level >= ' . db_param();
+	$t_param = array( $p_level );
+
+	if( $p_enabled !== null ) {
+		$t_query .= ' AND enabled = ' . db_param();
+		$t_param[] = (bool)$p_enabled;
 	}
 
-	$t_result = db_query( $t_query, array( $p_level ) );
+	# Get the number of users
+	$t_result = db_query( $t_query, $t_param );
+	$t_count = db_result( $t_result );
 
-	# Get the list of connected users
-	$t_users = db_result( $t_result );
-
-	return $t_users;
+	return $t_count;
 }
 
 /**
@@ -537,6 +541,7 @@ function user_get_logged_in_user_ids( $p_session_duration_in_minutes ) {
 	$t_last_timestamp_threshold = mktime( date( 'H' ), date( 'i' ) - 1 * $t_session_duration_in_minutes, date( 's' ), date( 'm' ), date( 'd' ), date( 'Y' ) );
 
 	# Execute query
+	db_param_push();
 	$t_query = 'SELECT id FROM {user} WHERE last_visit > ' . db_param();
 	$t_result = db_query( $t_query, array( $t_last_timestamp_threshold ), 1 );
 
@@ -582,6 +587,7 @@ function user_create( $p_username, $p_password, $p_email = '',
 
 	$t_cookie_string = auth_generate_unique_cookie_string();
 
+	db_param_push();
 	$t_query = 'INSERT INTO {user}
 				    ( username, email, password, date_created, last_visit,
 				     enabled, access_level, login_count, cookie_string, realname )
@@ -602,6 +608,7 @@ function user_create( $p_username, $p_password, $p_email = '',
 	# Send notification email
 	if( !is_blank( $p_email ) ) {
 		$t_confirm_hash = auth_generate_confirm_hash( $t_user_id );
+		token_set( TOKEN_ACCOUNT_ACTIVATION, $t_confirm_hash, TOKEN_EXPIRY_ACCOUNT_ACTIVATION, $t_user_id );
 		email_signup( $t_user_id, $t_confirm_hash, $p_admin_name );
 	}
 
@@ -613,7 +620,7 @@ function user_create( $p_username, $p_password, $p_email = '',
 /**
  * Signup a user.
  * If the use_ldap_email config option is on then tries to find email using
- * ldap. $p_email may be empty, but the user wont get any emails.
+ * ldap. $p_email may be empty, but the user won't get any emails.
  * returns false if error, the generated cookie string if ok
  * @param string $p_username The username to sign up.
  * @param string $p_email    The email address of the user signing up.
@@ -652,7 +659,7 @@ function user_signup( $p_username, $p_email = null ) {
 	# Create random password
 	$t_password = auth_generate_random_password();
 
-	return user_create( $p_username, $t_password, $p_email );
+	return user_create( $p_username, $t_password, $p_email, auth_signup_access_level() );
 }
 
 /**
@@ -665,6 +672,7 @@ function user_signup( $p_username, $p_email = null ) {
 function user_delete_project_specific_access_levels( $p_user_id ) {
 	user_ensure_unprotected( $p_user_id );
 
+	db_param_push();
 	$t_query = 'DELETE FROM {project_user_list} WHERE user_id=' . db_param();
 	db_query( $t_query, array( (int)$p_user_id ) );
 
@@ -683,6 +691,7 @@ function user_delete_profiles( $p_user_id ) {
 	user_ensure_unprotected( $p_user_id );
 
 	# Remove associated profiles
+	db_param_push();
 	$t_query = 'DELETE FROM {user_profile} WHERE user_id=' . db_param();
 	db_query( $t_query, array( (int)$p_user_id ) );
 
@@ -717,6 +726,7 @@ function user_delete( $p_user_id ) {
 	# unset non-unique realname flags if necessary
 	if( config_get( 'differentiate_duplicates' ) ) {
 		$c_realname = user_get_field( $p_user_id, 'realname' );
+		db_param_push();
 		$t_query = 'SELECT id FROM {user} WHERE realname=' . db_param();
 		$t_result = db_query( $t_query, array( $c_realname ) );
 
@@ -739,6 +749,7 @@ function user_delete( $p_user_id ) {
 	user_clear_cache( $p_user_id );
 
 	# Remove account
+	db_param_push();
 	$t_query = 'DELETE FROM {user} WHERE id=' . db_param();
 	db_query( $t_query, array( $c_user_id ) );
 
@@ -757,6 +768,7 @@ function user_get_id_by_name( $p_username ) {
 		return $t_user['id'];
 	}
 
+	db_param_push();
 	$t_query = 'SELECT * FROM {user} WHERE username=' . db_param();
 	$t_result = db_query( $t_query, array( $p_username ) );
 
@@ -775,11 +787,11 @@ function user_get_id_by_name( $p_username ) {
  * @return array
  */
 function user_get_id_by_email( $p_email ) {
-	global $g_cache_user;
 	if( $t_user = user_search_cache( 'email', $p_email ) ) {
 		return $t_user['id'];
 	}
 
+	db_param_push();
 	$t_query = 'SELECT * FROM {user} WHERE email=' . db_param();
 	$t_result = db_query( $t_query, array( $p_email ) );
 
@@ -803,6 +815,7 @@ function user_get_id_by_email( $p_email ) {
  * @return array The user ids or an empty array.
  */
 function user_get_enabled_ids_by_email( $p_email ) {
+	db_param_push();
 	$t_query = 'SELECT * FROM {user} WHERE email=' . db_param() .
 		' AND enabled=' . db_param() . ' ORDER BY access_level DESC';
 	$t_result = db_query( $t_query, array( $p_email, 1 ) );
@@ -823,11 +836,11 @@ function user_get_enabled_ids_by_email( $p_email ) {
  * @return array
  */
 function user_get_id_by_realname( $p_realname ) {
-	global $g_cache_user;
 	if( $t_user = user_search_cache( 'realname', $p_realname ) ) {
 		return $t_user['id'];
 	}
 
+	db_param_push();
 	$t_query = 'SELECT * FROM {user} WHERE realname=' . db_param();
 	$t_result = db_query( $t_query, array( $p_realname ) );
 
@@ -918,6 +931,16 @@ function user_get_email( $p_user_id ) {
 }
 
 /**
+ * Lookup the user's login name (username)
+ *
+ * @param integer $p_user_id A valid user identifier.
+ * @return string
+ */
+function user_get_username( $p_user_id ) {
+	return user_get_field( $p_user_id, 'username' );
+}
+
+/**
  * lookup the user's realname
  *
  * @param integer $p_user_id A valid user identifier.
@@ -938,10 +961,19 @@ function user_get_realname( $p_user_id ) {
 }
 
 /**
- * return the username or a string "user<id>" if the user does not exist
- * if show_user_realname_threshold is set and real name is not empty, return it instead
+ * Return the user's name for display.
+ *
+ * The name is determined based on the following sequence:
+ * - if the user does not exist, returns the user ID prefixed by a localized
+ *   string (prefix_for_deleted_users, "user" by default);
+ * - if show_realname is ON and it is not empty, return the user's Real Name;
+ * - Otherwise, return the username
+ *
+ * NOTE: do not use this function to retrieve the user's username
+ * @see user_get_username()
  *
  * @param integer $p_user_id A valid user identifier.
+ *
  * @return string
  */
 function user_get_name( $p_user_id ) {
@@ -967,50 +999,6 @@ function user_get_name( $p_user_id ) {
 }
 
 /**
-* Return the user avatar image URL
-* in this first implementation, only gravatar.com avatars are supported
-*
-* This function returns an array( URL, width, height ) or an empty array when the given user has no avatar.
-*
-* @param integer $p_user_id A valid user identifier.
-* @param integer $p_size    The required number of pixel in the image to retrieve the link for.
-* @return array
-*/
-function user_get_avatar( $p_user_id, $p_size = 80 ) {
-	$t_default_avatar = config_get( 'show_avatar' );
-
-	if( OFF === $t_default_avatar ) {
-		# Avatars are not used
-		return array();
-	}
-	# Set default avatar for legacy configuration
-	if( ON === $t_default_avatar ) {
-		$t_default_avatar = 'identicon';
-	}
-
-	# Default avatar is either one of Gravatar's options, or
-	# assumed to be an URL to a default avatar image
-	$t_default_avatar = urlencode( $t_default_avatar );
-	$t_rating = 'G';
-
-	if ( user_exists( $p_user_id ) ) {
-		$t_email_hash = md5( strtolower( trim( user_get_email( $p_user_id ) ) ) );
-	} else {
-		$t_email_hash = md5( 'generic-avatar-since-user-not-found' );
-	}
-
-	# Build Gravatar URL
-	if( http_is_protocol_https() ) {
-		$t_avatar_url = 'https://secure.gravatar.com/';
-	} else {
-		$t_avatar_url = 'http://www.gravatar.com/';
-	}
-	$t_avatar_url .= 'avatar/' . $t_email_hash . '?d=' . $t_default_avatar . '&r=' . $t_rating . '&s=' . $p_size;
-
-	return array( $t_avatar_url, $p_size, $p_size );
-}
-
-/**
  * return the user's access level
  * account for private project and the project user lists
  *
@@ -1025,7 +1013,7 @@ function user_get_access_level( $p_user_id, $p_project_id = ALL_PROJECTS ) {
 		return $t_access_level;
 	}
 
-	$t_project_access_level = project_get_local_user_access_level( $p_project_id, $p_user_id );
+	$t_project_access_level = access_get_local_level( $p_user_id, $p_project_id );
 
 	if( false === $t_project_access_level ) {
 		return $t_access_level;
@@ -1056,6 +1044,7 @@ function user_get_accessible_projects( $p_user_id, $p_show_disabled = false ) {
 		$t_public = VS_PUBLIC;
 		$t_private = VS_PRIVATE;
 
+		db_param_push();
 		$t_query = 'SELECT p.id, p.name, ph.parent_id
 						  FROM {project} p
 						  LEFT JOIN {project_user_list} u
@@ -1243,6 +1232,7 @@ function user_get_all_accessible_projects( $p_user_id = null, $p_project_id = AL
  *		The array contains the id, name, view state, and project access level for the user.
  */
 function user_get_assigned_projects( $p_user_id ) {
+	db_param_push();
 	$t_query = 'SELECT DISTINCT p.id, p.name, p.view_state, u.access_level
 				FROM {project} p
 				LEFT JOIN {project_user_list} u
@@ -1272,6 +1262,7 @@ function user_get_unassigned_by_project_id( $p_project_id = null ) {
 	}
 
 	$t_adm = config_get_global( 'admin_site_threshold' );
+	db_param_push();
 	$t_query = 'SELECT DISTINCT u.id, u.username, u.realname
 				FROM {user} u
 				LEFT JOIN {project_user_list} p
@@ -1324,6 +1315,7 @@ function user_get_assigned_open_bug_count( $p_user_id, $p_project_id = ALL_PROJE
 
 	$t_resolved = config_get( 'bug_resolved_status_threshold' );
 
+	db_param_push();
 	$t_query = 'SELECT COUNT(*)
 				  FROM {bug}
 				  WHERE ' . $t_where_prj . '
@@ -1346,6 +1338,7 @@ function user_get_reported_open_bug_count( $p_user_id, $p_project_id = ALL_PROJE
 
 	$t_resolved = config_get( 'bug_resolved_status_threshold' );
 
+	db_param_push();
 	$t_query = 'SELECT COUNT(*) FROM {bug}
 				  WHERE ' . $t_where_prj . '
 						  status<' . db_param() . ' AND
@@ -1363,6 +1356,7 @@ function user_get_reported_open_bug_count( $p_user_id, $p_project_id = ALL_PROJE
  * @return array
  */
 function user_get_profile_row( $p_user_id, $p_profile_id ) {
+	db_param_push();
 	$t_query = 'SELECT * FROM {user_profile}
 				  WHERE id=' . db_param() . ' AND
 						user_id=' . db_param();
@@ -1420,14 +1414,27 @@ function user_get_bug_filter( $p_user_id, $p_project_id = null ) {
 
 	$t_view_all_cookie_id = filter_db_get_project_current( $t_project_id, $p_user_id );
 	$t_view_all_cookie = filter_db_get_filter( $t_view_all_cookie_id, $p_user_id );
-	$t_cookie_detail = explode( '#', $t_view_all_cookie, 2 );
 
-	if( !isset( $t_cookie_detail[1] ) ) {
+	$t_filter = filter_deserialize( $t_view_all_cookie );
+	if( !$t_filter ) {
 		return filter_get_default();
 	}
 
-	$t_filter = json_decode( $t_cookie_detail[1], true );
-
+	# when the user specific filter references a stored filter id, get that filter instead
+	if( isset( $t_filter['_source_query_id'] ) && $t_view_all_cookie_id != $t_filter['_source_query_id'] ) {
+		$t_source_query_id = $t_filter['_source_query_id'];
+		# check if filter id is a proper stored filter, and is accesible
+		if( filter_is_named_filter( $t_source_query_id ) && filter_is_accessible( $t_source_query_id ) ){
+			# the actual stored filter can be retrieved
+			$t_filter_row = filter_cache_row( $t_source_query_id, /* trigger_errors */ false );
+			$t_filter = filter_deserialize( filter_db_get_filter( $t_source_query_id ) );
+			# update the referenced stored filter id
+			$t_filter['_source_query_id'] = $t_source_query_id;
+		} else {
+			# If the filter id is not valid, clean the referenced filter id
+			unset( $t_filter['_source_query_id'] );
+		}
+	}
 	$t_filter = filter_ensure_valid_filter( $t_filter );
 
 	return $t_filter;
@@ -1443,8 +1450,8 @@ function user_update_last_visit( $p_user_id ) {
 	$c_user_id = (int)$p_user_id;
 	$c_value = db_now();
 
+	db_param_push();
 	$t_query = 'UPDATE {user} SET last_visit=' . db_param() . ' WHERE id=' . db_param();
-
 	db_query( $t_query, array( $c_value, $c_user_id ) );
 
 	user_update_cache( $c_user_id, 'last_visit', $c_value );
@@ -1460,8 +1467,8 @@ function user_update_last_visit( $p_user_id ) {
  * @return boolean always true
  */
 function user_increment_login_count( $p_user_id ) {
+	db_param_push();
 	$t_query = 'UPDATE {user} SET login_count=login_count+1 WHERE id=' . db_param();
-
 	db_query( $t_query, array( (int)$p_user_id ) );
 
 	user_clear_cache( $p_user_id );
@@ -1476,6 +1483,7 @@ function user_increment_login_count( $p_user_id ) {
  * @return boolean always true
  */
 function user_reset_failed_login_count_to_zero( $p_user_id ) {
+	db_param_push();
 	$t_query = 'UPDATE {user} SET failed_login_count=0 WHERE id=' . db_param();
 	db_query( $t_query, array( (int)$p_user_id ) );
 
@@ -1491,6 +1499,7 @@ function user_reset_failed_login_count_to_zero( $p_user_id ) {
  * @return boolean always true
  */
 function user_increment_failed_login_count( $p_user_id ) {
+	db_param_push();
 	$t_query = 'UPDATE {user} SET failed_login_count=failed_login_count+1 WHERE id=' . db_param();
 	db_query( $t_query, array( $p_user_id ) );
 
@@ -1506,6 +1515,7 @@ function user_increment_failed_login_count( $p_user_id ) {
  * @return boolean always true
  */
 function user_reset_lost_password_in_progress_count_to_zero( $p_user_id ) {
+	db_param_push();
 	$t_query = 'UPDATE {user} SET lost_password_request_count=0 WHERE id=' . db_param();
 	db_query( $t_query, array( $p_user_id ) );
 
@@ -1521,6 +1531,7 @@ function user_reset_lost_password_in_progress_count_to_zero( $p_user_id ) {
  * @return boolean always true
  */
 function user_increment_lost_password_in_progress_count( $p_user_id ) {
+	db_param_push();
 	$t_query = 'UPDATE {user}
 				SET lost_password_request_count=lost_password_request_count+1
 				WHERE id=' . db_param();
@@ -1547,6 +1558,7 @@ function user_set_fields( $p_user_id, array $p_fields ) {
 		user_ensure_unprotected( $p_user_id );
 	}
 
+	db_param_push();
 	$t_query = 'UPDATE {user}';
 	$t_parameters = array();
 
@@ -1610,9 +1622,12 @@ function user_set_password( $p_user_id, $p_password, $p_allow_protected = false 
 	# When the password is changed, invalidate the cookie to expire sessions that
 	# may be active on all browsers.
 	$c_cookie_string = auth_generate_unique_cookie_string();
+	# Delete token for password activation if there is any
+	token_delete( TOKEN_ACCOUNT_ACTIVATION, $p_user_id );
 
 	$c_password = auth_process_plain_password( $p_password );
 
+	db_param_push();
 	$t_query = 'UPDATE {user}
 				  SET password=' . db_param() . ', cookie_string=' . db_param() . '
 				  WHERE id=' . db_param();
@@ -1705,6 +1720,7 @@ function user_reset_password( $p_user_id, $p_send_email = true ) {
 		# Send notification email
 		if( $p_send_email ) {
 			$t_confirm_hash = auth_generate_confirm_hash( $p_user_id );
+			token_set( TOKEN_ACCOUNT_ACTIVATION, $t_confirm_hash, TOKEN_EXPIRY_ACCOUNT_ACTIVATION, $p_user_id );
 			email_send_confirm_hash_url( $p_user_id, $t_confirm_hash );
 		}
 	} else {

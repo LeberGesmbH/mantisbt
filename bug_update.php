@@ -165,7 +165,7 @@ if ( !$t_reporter_reopening && !$t_reporter_closing ) {
 	}
 }
 
-# If resolving or closing, ensure that all dependant issues have been resolved.
+# If resolving or closing, ensure that all dependent issues have been resolved.
 if( ( $t_resolve_issue || $t_close_issue ) &&
 	!relationship_can_resolve_bug( $f_bug_id )
 ) {
@@ -205,8 +205,9 @@ if( $t_existing_bug->status != $t_updated_bug->status ) {
 }
 
 # Validate any change to the handler of an issue.
-$t_issue_is_sponsored = sponsorship_get_amount( sponsorship_get_all_ids( $f_bug_id ) ) > 0;
 if( $t_existing_bug->handler_id != $t_updated_bug->handler_id ) {
+	$t_issue_is_sponsored = config_get( 'enable_sponsorship' )
+		&& sponsorship_get_amount( sponsorship_get_all_ids( $f_bug_id ) ) > 0;
 	access_ensure_bug_level( config_get( 'update_bug_assign_threshold' ), $f_bug_id );
 	if( $t_issue_is_sponsored && !access_has_bug_level( config_get( 'handle_sponsored_bugs_threshold' ), $f_bug_id ) ) {
 		trigger_error( ERROR_SPONSORSHIP_HANDLER_ACCESS_LEVEL_TOO_LOW, ERROR );
@@ -326,12 +327,11 @@ if( $t_updated_bug->duplicate_id != 0 ) {
 	if( $t_updated_bug->duplicate_id == $f_bug_id ) {
 		trigger_error( ERROR_BUG_DUPLICATE_SELF, ERROR );
 	}
+
 	bug_ensure_exists( $t_updated_bug->duplicate_id );
+
 	if( !access_has_bug_level( config_get( 'update_bug_threshold' ), $t_updated_bug->duplicate_id ) ) {
 		trigger_error( ERROR_RELATIONSHIP_ACCESS_LEVEL_TO_DEST_BUG_TOO_LOW, ERROR );
-	}
-	if( relationship_exists( $f_bug_id, $t_updated_bug->duplicate_id ) ) {
-		trigger_error( ERROR_RELATIONSHIP_ALREADY_EXISTS, ERROR );
 	}
 }
 
@@ -372,14 +372,7 @@ if( $t_bug_note->note &&
 }
 
 # Handle automatic assignment of issues.
-if( $t_existing_bug->handler_id == NO_USER &&
-	$t_updated_bug->handler_id != NO_USER &&
-	$t_updated_bug->status == $t_existing_bug->status &&
-	$t_updated_bug->status < config_get( 'bug_assigned_status' ) &&
-	config_get( 'auto_set_status_to_assigned' )
-) {
-	$t_updated_bug->status = config_get( 'bug_assigned_status' );
-}
+$t_updated_bug->status = bug_get_status_for_assign( $t_existing_bug->handler_id, $t_updated_bug->handler_id, $t_existing_bug->status, $t_updated_bug->status );
 
 # Allow a custom function to validate the proposed bug updates. Note that
 # custom functions are being deprecated in MantisBT. You should migrate to
@@ -402,20 +395,22 @@ foreach ( $t_custom_fields_to_set as $t_custom_field_to_set ) {
 
 # Add a bug note if there is one.
 if( $t_bug_note->note || helper_duration_to_minutes( $t_bug_note->time_tracking ) > 0 ) {
-	bugnote_add( $f_bug_id, $t_bug_note->note, $t_bug_note->time_tracking, $t_bug_note->view_state == VS_PRIVATE, 0, '', null, false );
+	$t_bugnote_id = bugnote_add( $f_bug_id, $t_bug_note->note, $t_bug_note->time_tracking, $t_bug_note->view_state == VS_PRIVATE, 0, '', null, false );
+	bugnote_process_mentions( $f_bug_id, $t_bugnote_id, $t_bug_note->note );
 }
 
 # Add a duplicate relationship if requested.
 if( $t_updated_bug->duplicate_id != 0 ) {
-	relationship_add( $f_bug_id, $t_updated_bug->duplicate_id, BUG_DUPLICATE );
-	history_log_event_special( $f_bug_id, BUG_ADD_RELATIONSHIP, BUG_DUPLICATE, $t_updated_bug->duplicate_id );
-	history_log_event_special( $t_updated_bug->duplicate_id, BUG_ADD_RELATIONSHIP, BUG_HAS_DUPLICATE, $f_bug_id );
+	relationship_upsert( $f_bug_id, $t_updated_bug->duplicate_id, BUG_DUPLICATE, /* email_for_source */ false );
+
 	if( user_exists( $t_existing_bug->reporter_id ) ) {
 		bug_monitor( $f_bug_id, $t_existing_bug->reporter_id );
 	}
+
 	if( user_exists( $t_existing_bug->handler_id ) ) {
 		bug_monitor( $f_bug_id, $t_existing_bug->handler_id );
 	}
+
 	bug_monitor_copy( $f_bug_id, $t_updated_bug->duplicate_id );
 }
 

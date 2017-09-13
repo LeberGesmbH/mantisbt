@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 MantisBT - a PHP based bugtracking system
 Copyright (C) 2000-2002  Kenzaburo Ito - kenito@300baud.org
-Copyright (C) 2002-2013  MantisBT Team - mantisbt-dev@lists.sourceforge.net
+Copyright (C) 2002  MantisBT Team - mantisbt-dev@lists.sourceforge.net
 -------------------------------------------------------------------------------
 
 *** Please contact project administrators by sending a message to the
@@ -20,8 +20,10 @@ Developers
 ----------
 
 Damien Regad (dregad)
-Robert Munteaunu (rombert)
+Robert Munteanu (rombert)
 Roland Becker (atrol)
+Carlos Proensa (cproensa)
+Rafik Robeal (syncguru)
 
 
 Ex-Administrators
@@ -57,115 +59,144 @@ Glenn Henshaw
 Julian Fitzell
 David Hicks
 John Reese
+Carlos Proensa
+Rafik Robeal
 Jeroen Latour
 Siebrand Mazeland
+Roland Becker
 Robert Munteanu
 Gianluca Sforna
-Roland Becker
 André Eisenbach
 Daryn Warriner
 bigbadger
+translatewiki.net
 Lincoln Maskey
 Marcello Scata
 Alexey Chumakov
 beerfrick
-Kornel Lesinski
+Joel C. Llano
 Bastian Pfenningschmidt
+Kornel Lesinski
 Adrian Spinei
 zakman
 Martin Fuchs
 jbrugger
 jctrosset
-Carlos Proensa
-Rafik Robeal
+Vladimir Shulev
+Kirill Krasnov
+Bob Le Bricodeur
 ryandesign
 rufinus
-Kirill Krasnov
+jhuggins
 David Newcomb
 Rasmus Lerdorf
-jhuggins
 yarick123
 robertjf
 jotel
+Luke Lee
 Frank Rodgers
+planser
 Chris Fitch
 Johan Guilbaud
 davidu
-planser
+Tamás Gulácsi
+myplacedk
 Franck Villaume
 Matej Habrnal
 Véronique Maginot
-myplacedk
 smhanson
 vwegert
-Stefan Pettersson
 Vincent Sels
+Stefan Pettersson
 Daniel Tschinder
-Giovanni Giacobbi
-Dominik Blunk
-torija
+atrol
 Jim Hanley
+Giovanni Giacobbi
+Martin Schleußer
 cyclespersecond
 Stéphane Veyret
-Tamás Gulácsi
 scoates
+Dominik Blunk
+torija
+Val Kulkov
+Romain CABASSOT
+Christian Weiske
+Alexander Menk
+Alexander Ishmuradov
+Justin Theberge
+Matt McCutchen
+Tarik Sedlarevic
+libregeek
+Manilal
+Sebastian Limbach
+mfoXen
+Markus Schneider
 Dan Moore
 jeckyhl
-badfiles
-mfoXen
 puklos
-Alexander Menk
-Tarik Sedlarevic
-Matt McCutchen
-Markus Schneider
-Christian Weiske
+Ryan Rafe Lee
+SL-Gundam
+Sebastian Kayser
+Sergio Del Franco
+Edward Rudd
 The Gitter Badger
 Todd Whitesel
+Dmitriy V Kuranov
 Dawit Ayalew
-Alexander Maringer
+watergad
 David W. Juntgen
 cheesecracker
 cybd
 davethegr8
 Daniel N
 dwethell
+epenet
 gcompagnon
 greenius
 Brian Wrightson
 Bob Clough
+luzpaz
 mbaranski
-watergad
-petertc
 Bill Stidham
+naveenbali
+petertc
 Benjamin Renard
 Andreas Stieger
 Andreas Schopper
+Allan Brazute
+Alexander Maringer
+spidgorny
 tfromm
 Karl Wiggisser
+José D. Grieco
 Jonas Nockert
-Jacob Hoover
-Jacky Alcine
+Larry Lewis
 Laszlo Kovacs
-Henning Eiben
+LeoZandvliet
+Jeremy Vriens
+Jacob Hoover
+MS-Astra
+Jacky Alcine
 Marcin Kłeczek
 Marco Dings
-Heiko Schneider-Lange
+Martin Dennhardt
+Ian MacKenzie
+wapznw
 MatthieuR
 Michael Lorer
 Michael Weibel
 Murray Crane
 Olivier Mengué
-Gulacsi Tamas
+Patrick Massot
+Henning Eiben
+Peter Dave Hello
 Pier-Luc Duchaine
-Florent Daigniere
+Heiko Schneider-Lange
+Gulacsi Tamas
 Raul Baldner junior
 Raymond van Asperen
-Edward Rudd
+Florent Daigniere
 Ross Nelson
-SL-Gundam
-Sebastian Kayser
-Sergio Del Franco
-Dmitriy V Kuranov
 Adrian Spinei
 
 Other Contributors

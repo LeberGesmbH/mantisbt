@@ -2,7 +2,7 @@
 /** MantisBT - a php based bugtracking system
  *
  * Copyright (C) 2000 - 2002  Kenzaburo Ito - kenito@300baud.org
- * Copyright (C) 2002 - 2015  MantisBT Team - mantisbt-dev@lists.sourceforge.net
+ * Copyright (C) 2002 - 2016  MantisBT Team - mantisbt-dev@lists.sourceforge.net
  *
  * MantisBT is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,5 +51,7 @@ $s_plugin_format_process_text_warning_notice = 'Non disattivare a meno che tu no
 $s_plugin_format_process_urls = 'Elaborazione URL';
 $s_plugin_format_process_buglinks = 'Collegamenti interni MantisBT (anomalie e note anomalia)';
 $s_plugin_format_process_buglinks_info = 'La tua configurazione definisce l\'etichetta <em>anomalia</em> come "<literal>%s</literal>" e l\'etichetta <em>note anomalia</em> come "<literal>%s</literal>"';
+$s_plugin_format_process_markdown = 'Elaborazione Markdown';
+$s_plugin_format_process_markdown_info = 'Applicando stili con il supporto Markdown, la sintassi di formattazione del testo è disegnata in modo che possa essere convertita in HTML.';
 $s_plugin_format_enabled = 'Attivo';
 $s_plugin_format_disabled = 'Disattivato';

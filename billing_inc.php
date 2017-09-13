@@ -51,9 +51,7 @@ require_api( 'string_api.php' );
 require_api( 'utility_api.php' );
 
 ?>
-<a id="bugnotestats"></a><br />
 <?php
-collapse_open( 'bugnotestats' );
 
 $t_today = date( 'd:m:Y' );
 $t_date_submitted = isset( $t_bug ) ? date( 'd:m:Y', $t_bug->date_submitted ) : $t_today;
@@ -64,9 +62,9 @@ $t_bugnote_stats_from_def_d = $t_bugnote_stats_from_def_ar[0];
 $t_bugnote_stats_from_def_m = $t_bugnote_stats_from_def_ar[1];
 $t_bugnote_stats_from_def_y = $t_bugnote_stats_from_def_ar[2];
 
-$t_bugnote_stats_from_d = gpc_get_int( 'start_day', $t_bugnote_stats_from_def_d );
-$t_bugnote_stats_from_m = gpc_get_int( 'start_month', $t_bugnote_stats_from_def_m );
-$t_bugnote_stats_from_y = gpc_get_int( 'start_year', $t_bugnote_stats_from_def_y );
+$t_bugnote_stats_from_d = gpc_get_int( FILTER_PROPERTY_DATE_SUBMITTED_START_DAY, $t_bugnote_stats_from_def_d );
+$t_bugnote_stats_from_m = gpc_get_int( FILTER_PROPERTY_DATE_SUBMITTED_START_MONTH, $t_bugnote_stats_from_def_m );
+$t_bugnote_stats_from_y = gpc_get_int( FILTER_PROPERTY_DATE_SUBMITTED_START_YEAR, $t_bugnote_stats_from_def_y );
 
 $t_bugnote_stats_to_def = $t_today;
 $t_bugnote_stats_to_def_ar = explode( ':', $t_bugnote_stats_to_def );
@@ -74,9 +72,9 @@ $t_bugnote_stats_to_def_d = $t_bugnote_stats_to_def_ar[0];
 $t_bugnote_stats_to_def_m = $t_bugnote_stats_to_def_ar[1];
 $t_bugnote_stats_to_def_y = $t_bugnote_stats_to_def_ar[2];
 
-$t_bugnote_stats_to_d = gpc_get_int( 'end_day', $t_bugnote_stats_to_def_d );
-$t_bugnote_stats_to_m = gpc_get_int( 'end_month', $t_bugnote_stats_to_def_m );
-$t_bugnote_stats_to_y = gpc_get_int( 'end_year', $t_bugnote_stats_to_def_y );
+$t_bugnote_stats_to_d = gpc_get_int( FILTER_PROPERTY_DATE_SUBMITTED_END_DAY, $t_bugnote_stats_to_def_d );
+$t_bugnote_stats_to_m = gpc_get_int( FILTER_PROPERTY_DATE_SUBMITTED_END_MONTH, $t_bugnote_stats_to_def_m );
+$t_bugnote_stats_to_y = gpc_get_int( FILTER_PROPERTY_DATE_SUBMITTED_END_YEAR, $t_bugnote_stats_to_def_y );
 
 $f_get_bugnote_stats_button = gpc_get_string( 'get_bugnote_stats_button', '' );
 
@@ -91,10 +89,30 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 	$t_cost_col = false;
 }
 
+$t_collapse_block = is_collapsed( 'time_tracking_stats' );
+$t_block_css = $t_collapse_block ? 'collapsed' : '';
+$t_block_icon = $t_collapse_block ? 'fa-chevron-down' : 'fa-chevron-up';
+
 # Time tracking date range input form
 # CSRF protection not required here - form does not result in modifications
 ?>
 
+<div class="col-md-12 col-xs-12">
+<div id="time_tracking_stats" class="widget-box widget-color-blue2 <?php echo $t_block_css ?>">
+<div class="widget-header widget-header-small">
+    <h4 class="widget-title lighter">
+        <i class="ace-icon fa fa-clock-o"></i>
+        <?php echo lang_get( 'time_tracking' ) ?>
+    </h4>
+	<div class="widget-toolbar">
+		<a data-action="collapse" href="#">
+			<i class="1 ace-icon <?php echo $t_block_icon ?> fa bigger-125"></i>
+		</a>
+	</div>
+</div>
+
+
+<div class="widget-body">
 <form method="post" action="">
 	<input type="hidden" name="id" value="<?php echo isset( $f_bug_id ) ? $f_bug_id : 0 ?>" />
 	<table class="width100" cellspacing="0">
@@ -107,14 +125,15 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 		<tr class="row-2">
 			<td class="category" width="25%">
 				<?php
-					$g_filter = array();
-					$g_filter[FILTER_PROPERTY_FILTER_BY_DATE] = 'on';
-					$g_filter[FILTER_PROPERTY_START_DAY] = $t_bugnote_stats_from_d;
-					$g_filter[FILTER_PROPERTY_START_MONTH] = $t_bugnote_stats_from_m;
-					$g_filter[FILTER_PROPERTY_START_YEAR] = $t_bugnote_stats_from_y;
-					$g_filter[FILTER_PROPERTY_END_DAY] = $t_bugnote_stats_to_d;
-					$g_filter[FILTER_PROPERTY_END_MONTH] = $t_bugnote_stats_to_m;
-					$g_filter[FILTER_PROPERTY_END_YEAR] = $t_bugnote_stats_to_y;
+					$t_filter = array();
+					$t_filter[FILTER_PROPERTY_FILTER_BY_DATE_SUBMITTED] = 'on';
+					$t_filter[FILTER_PROPERTY_DATE_SUBMITTED_START_DAY] = $t_bugnote_stats_from_d;
+					$t_filter[FILTER_PROPERTY_DATE_SUBMITTED_START_MONTH] = $t_bugnote_stats_from_m;
+					$t_filter[FILTER_PROPERTY_DATE_SUBMITTED_START_YEAR] = $t_bugnote_stats_from_y;
+					$t_filter[FILTER_PROPERTY_DATE_SUBMITTED_END_DAY] = $t_bugnote_stats_to_d;
+					$t_filter[FILTER_PROPERTY_DATE_SUBMITTED_END_MONTH] = $t_bugnote_stats_to_m;
+					$t_filter[FILTER_PROPERTY_DATE_SUBMITTED_END_YEAR] = $t_bugnote_stats_to_y;
+					filter_init( $t_filter );
 					print_filter_do_filter_by_date( true );
 				?>
 			</td>
@@ -141,6 +160,8 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 		</tr>
 	</table>
 </form>
+</div>
+</div>
 
 <?php
 	if( !is_blank( $f_get_bugnote_stats_button ) ) {
@@ -178,17 +199,18 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 		echo '<br />';
 
 ?>
-<br />
-<table class="width100" cellspacing="0">
-	<tr class="row-category2">
-		<td class="small-caption bold">
+<div class="space-10"></div>
+<div class="table-responsive">
+<table class="table table-bordered table-condensed table-striped">
+	<tr>
+		<td class="small-caption">
 			<?php echo lang_get( $t_name_field ) ?>
 		</td>
-		<td class="small-caption bold">
+		<td class="small-caption">
 			<?php echo lang_get( 'time_tracking' ) ?>
 		</td>
 <?php	if( $t_cost_col ) { ?>
-		<td class="small-caption bold right">
+		<td class="small-caption pull-right">
 			<?php echo lang_get( 'time_tracking_cost' ) ?>
 		</td>
 <?php	} ?>
@@ -220,8 +242,8 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 			} # end of users within issues loop
 		} # end for issues loop ?>
 
-	<tr class="row-category2">
-		<td class="small-caption bold">
+	<tr>
+		<td class="small-caption">
 			<?php echo lang_get( 'total_time' ); ?>
 		</td>
 		<td class="small-caption bold">
@@ -235,19 +257,19 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 	</tr>
 </table>
 
-<br />
-<br />
+<div class="space-10"></div>
 
-<table class="width100" cellspacing="0">
-	<tr class="row-category2">
-		<td class="small-caption bold">
+<div class="table-responsive">
+<table class="table table-bordered table-condensed table-striped">
+	<tr>
+		<td class="small-caption">
 			<?php echo lang_get( $t_name_field ) ?>
 		</td>
-		<td class="small-caption bold">
+		<td class="small-caption">
 			<?php echo lang_get( 'time_tracking' ) ?>
 		</td>
 <?php	if( $t_cost_col ) { ?>
-		<td class="small-caption bold right">
+		<td class="small-caption pull-right">
 			<?php echo lang_get( 'time_tracking_cost' ) ?>
 		</td>
 <?php	} ?>
@@ -287,17 +309,8 @@ if( ON == config_get( 'time_tracking_with_billing' ) ) {
 
 <?php
 	} # end if
-	collapse_closed( 'bugnotestats' );
 ?>
 
-<table class="width100" cellspacing="0">
-	<tr>
-		<td class="form-title" colspan="4"><?php
-			collapse_icon( 'bugnotestats' );
-			echo lang_get( 'time_tracking' ); ?>
-		</td>
-	</tr>
-</table>
+</div>
 
 <?php
-	collapse_end( 'bugnotestats' );
