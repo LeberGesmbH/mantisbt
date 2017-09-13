@@ -3548,12 +3548,19 @@ function filter_get_included_projects( array $p_filter, $p_project_id = null, $p
 		$t_top_project_ids = $t_project_ids;
 
 		foreach( $t_top_project_ids as $t_pid ) {
-			log_event( LOG_FILTERING, 'Getting sub-projects for project id @P' . $t_pid );
-			$t_subproject_ids = user_get_all_accessible_subprojects( $t_user_id, $t_pid );
-			if( !$t_subproject_ids ) {
-				continue;
+			if( config_get( 'subprojects_bugfilter_if_noversion' ) ) {
+				$versions = version_get_all_rows($t_pid);
+			} else {
+				$versions = array();
 			}
-			$t_project_ids = array_merge( $t_project_ids, $t_subproject_ids );
+			if( count($versions) == 0 ) {
+				log_event( LOG_FILTERING, 'Getting sub-projects for project id @P' . $t_pid );
+				$t_subproject_ids = user_get_all_accessible_subprojects( $t_user_id, $t_pid );
+				if( !$t_subproject_ids ) {
+					continue;
+				}
+				$t_project_ids = array_merge( $t_project_ids, $t_subproject_ids );
+			}
 		}
 
 		$t_project_ids = array_unique( $t_project_ids );

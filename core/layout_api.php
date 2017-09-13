@@ -791,6 +791,14 @@ function layout_print_sidebar( $p_active_sidebar_page = null ) {
 		# Manage Users (admins) or Manage Project (managers) or Manage Custom Fields
 		if( access_has_global_level( config_get( 'manage_site_threshold' ) ) ) {
 			layout_sidebar_menu( 'manage_overview_page.php', 'manage_link', 'fa-gears', $p_active_sidebar_page );
+			if( config_get( 'enable_manage_project_menu' )) {
+				if( access_has_project_level( config_get( 'manage_project_threshold' ), $t_current_project ) && ( $t_current_project <> ALL_PROJECTS ) ) {
+					$t_link = 'manage_proj_edit_page.php?project_id=' . $t_current_project;
+				} else {
+					$t_link = 'manage_proj_page.php';
+				}
+				layout_sidebar_menu( $t_link , 'manage_project', 'fa-gears' );
+			}
 		} else {
 			$t_show_access = min( config_get( 'manage_user_threshold' ), config_get( 'manage_project_threshold' ), config_get( 'manage_custom_fields_threshold' ) );
 			if( access_has_global_level( $t_show_access ) || access_has_any_project( $t_show_access ) ) {

@@ -4716,3 +4716,14 @@ $g_webservice_rest_enabled = OFF;
  * the attachment is linked to the note.  Or 0 for disabling this feature.
  */
 $g_issue_activity_note_attachments_seconds_threshold = 3;
+
+
+/**
+ * Add main menu entry for directly accessing project management
+*/
+$g_enable_manage_project_menu = OFF;
+
+/**
+ * Consider Sub-projects in bug-filter, only for top projects without versions.
+ */
+$g_subprojects_bugfilter_if_noversion = OFF;
