@@ -110,7 +110,14 @@ $t_updated_bug->view_state = gpc_get_int( 'view_state', $t_existing_bug->view_st
 
 $t_bug_note = new BugNoteData();
 $t_bug_note->note = gpc_get_string( 'bugnote_text', '' );
-$t_bug_note->view_state = gpc_get_bool( 'private', config_get( 'default_bugnote_view_status' ) == VS_PRIVATE ) ? VS_PRIVATE : VS_PUBLIC;
+$f_visible = gpc_get_string( 'visible', config_get( 'default_bugnote_view_status' ));
+if ($f_visible == 'private') {
+	$t_bug_note->view_state = VS_PRIVATE;
+} else if ($f_visible == 'relnote') {
+	$t_bug_note->view_state = VS_RELNOTE;
+} else {
+	$t_bug_note->view_state = VS_PUBLIC;
+}
 $t_bug_note->time_tracking = gpc_get_string( 'time_tracking', '0:00' );
 
 if( $t_existing_bug->last_updated != $t_updated_bug->last_updated ) {
@@ -395,7 +402,7 @@ foreach ( $t_custom_fields_to_set as $t_custom_field_to_set ) {
 
 # Add a bug note if there is one.
 if( $t_bug_note->note || helper_duration_to_minutes( $t_bug_note->time_tracking ) > 0 ) {
-	$t_bugnote_id = bugnote_add( $f_bug_id, $t_bug_note->note, $t_bug_note->time_tracking, $t_bug_note->view_state == VS_PRIVATE, 0, '', null, false );
+	$t_bugnote_id = bugnote_add( $f_bug_id, $t_bug_note->note, $t_bug_note->time_tracking, $t_bug_note->view_state, 0, '', null, false );
 	bugnote_process_mentions( $f_bug_id, $t_bugnote_id, $t_bug_note->note );
 }
 

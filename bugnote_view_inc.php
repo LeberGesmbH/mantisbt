@@ -170,6 +170,10 @@ $t_block_icon = $t_collapse_block ? 'fa-chevron-down' : 'fa-chevron-up';
 				&#160;&#160;
 				<i class="fa fa-eye red"></i> <?php echo lang_get( 'private' ) ?>
 			<?php } ?>
+			<?php if( $t_activity['relnote'] ) { ?>
+				&#160;&#160;
+				<i class="fa fa-eye"></i> <?php echo lang_get( 'relnote' ) ?>
+			<?php } ?>
 		</p>
 		<p class="no-margin">
 			<?php
@@ -253,11 +257,32 @@ $t_block_icon = $t_collapse_block ? 'fa-chevron-down' : 'fa-chevron-up';
 						lang_get( 'make_public' ),
 						array( 'private' => '0', 'bugnote_id' => $t_activity['id'] ),
 						$t_security_token_state );
+					print_form_button(
+						'bugnote_set_view_state.php',
+						lang_get( 'make_relnote' ),
+						array( 'relnote' => '1', 'bugnote_id' => $t_activity['id'] ),
+						$t_security_token_state );
+				} else if( $t_activity['relnote'] ) {
+					print_form_button(
+						'bugnote_set_view_state.php',
+						lang_get( 'make_public' ),
+						array( 'private' => '0', 'bugnote_id' => $t_activity['id'] ),
+						$t_security_token_state );
+					print_form_button(
+						'bugnote_set_view_state.php',
+						lang_get( 'make_private' ),
+						array( 'private' => '1', 'bugnote_id' => $t_activity['id'] ),
+						$t_security_token_state );
 				} else {
 					print_form_button(
 						'bugnote_set_view_state.php',
 						lang_get( 'make_private' ),
 						array( 'private' => '1', 'bugnote_id' => $t_activity['id'] ),
+						$t_security_token_state );
+					print_form_button(
+						'bugnote_set_view_state.php',
+						lang_get( 'make_relnote' ),
+						array( 'relnote' => '1', 'bugnote_id' => $t_activity['id'] ),
 						$t_security_token_state );
 				}
 				echo '</div>';

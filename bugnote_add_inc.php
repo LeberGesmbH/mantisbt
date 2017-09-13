@@ -101,8 +101,18 @@ require_api( 'lang_api.php' );
 				</th>
 				<td>
 				<label for="bugnote_add_view_status">
-					<input type="checkbox" class="ace" id="bugnote_add_view_status" name="private" <?php check_checked( $t_default_bugnote_view_status, VS_PRIVATE ); ?> />
-					<span class="lbl"> <?php echo lang_get( 'private' ) ?> </span>
+					<input type="radio" name="visible" value="public" <?php check_checked( $t_default_bugnote_view_status, VS_PUBLIC ); ?> />
+<?php
+			echo lang_get( 'public' );
+?>
+			<input type="radio" name="visible" value="private" <?php check_checked( $t_default_bugnote_view_status, VS_PRIVATE ); ?> />
+<?php
+			echo lang_get( 'private' );	
+?>
+			<input type="radio" name="visible" value="relnote" <?php check_checked( $t_default_bugnote_view_status, VS_RELNOTE ); ?> />
+<?php
+			echo lang_get( 'relnote' );
+?>
 				</label>
 				</td>
 			</tr>

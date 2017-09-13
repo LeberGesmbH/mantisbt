@@ -4095,6 +4095,7 @@ $g_show_queries_count = OFF;
 $g_display_errors = array(
 	E_USER_ERROR        => DISPLAY_ERROR_HALT,
 	E_RECOVERABLE_ERROR => DISPLAY_ERROR_HALT,
+	E_ALL               => DISPLAY_ERROR_INLINE
 );
 
 # Add developers defaults when server is localhost

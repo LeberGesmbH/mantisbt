@@ -54,7 +54,14 @@ require_api( 'print_api.php' );
 form_security_validate( 'bugnote_add' );
 
 $f_bug_id		= gpc_get_int( 'bug_id' );
-$f_private		= gpc_get_bool( 'private' );
+$f_visible		= gpc_get_string( 'visible', 'public' );
+if ($f_visible == 'private') {
+	$f_visible = VS_PRIVATE;
+} else if ($f_visible == 'relnote') {
+	$f_visible = VS_RELNOTE;
+} else {
+	$f_visible = VS_PUBLIC;
+}
 $f_time_tracking	= gpc_get_string( 'time_tracking', '0:00' );
 $f_bugnote_text	= trim( gpc_get_string( 'bugnote_text', '' ) );
 $f_files		= gpc_get_file( 'ufile', null );
@@ -62,7 +69,7 @@ $f_files		= gpc_get_file( 'ufile', null );
 # The UI hides the attach controls when the note is marked as private to avoid disclosure of
 # attachments.  Attaching files to private notes can be re-enabled as proper support for protecting
 # private attachments is implemented.
-if( $f_private && $f_files !== null ) {
+if( ($f_visible == VS_PRIVATE) && $f_files !== null ) {
 	$f_files = null;
 }
 
@@ -80,7 +87,7 @@ if( bug_is_readonly( $t_bug->id ) ) {
 
 access_ensure_bug_level( config_get( 'add_bugnote_threshold' ), $t_bug->id );
 
-if( $f_private ) {
+if( $f_visible == VS_PRIVATE ) {
 	access_ensure_bug_level( config_get( 'set_view_status_threshold' ), $t_bug->id );
 }
 
@@ -103,7 +110,7 @@ if( is_blank( $f_bugnote_text ) && helper_duration_to_minutes( $f_time_tracking 
 } else {
 	# We always set the note time to BUGNOTE, and the API will overwrite it with TIME_TRACKING
 	# if $f_time_tracking is not 0 and the time tracking feature is enabled.
-	$t_bugnote_id = bugnote_add( $t_bug->id, $f_bugnote_text, $f_time_tracking, $f_private, BUGNOTE,
+	$t_bugnote_id = bugnote_add( $t_bug->id, $f_bugnote_text, $f_time_tracking, $f_visible, BUGNOTE,
 		/* attr */ '', /* user_id */ null, /* send_email */ false );
 	if( !$t_bugnote_id ) {
 		error_parameters( lang_get( 'bugnote' ) );

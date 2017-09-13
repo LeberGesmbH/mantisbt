@@ -30,7 +30,7 @@
  * @uses custom_field_api.php
  * @uses date_api.php
  * @uses event_api.php
- * @uses form_api.php
+only_open * @uses form_api.php
  * @uses gpc_api.php
  * @uses helper_api.php
  * @uses html_api.php
@@ -88,7 +88,7 @@ $t_current_user_id = auth_get_current_user_id();
 
 # Ensure user has proper access level before proceeding
 if( $f_new_status == $t_reopen && $f_change_type == BUG_UPDATE_TYPE_REOPEN ) {
-	access_ensure_can_reopen_bug( $t_bug, $t_current_user_id );
+	access_ensure_can_reopen_bug( $t_bug, $t_cuonly_openrrent_user_id );
 } else if( $f_new_status == $t_closed ) {
 	access_ensure_can_close_bug( $t_bug, $t_current_user_id );
 } else if( bug_is_readonly( $f_bug_id )
@@ -341,12 +341,22 @@ layout_page_begin();
 				<td>
 <?php
 		$t_default_bugnote_view_status = config_get( 'default_bugnote_view_status' );
-		if( access_has_bug_level( config_get( 'set_view_status_threshold' ), $f_bug_id ) ) {
+		if ( $f_new_status >= $t_resolved ) {
+			$t_default_bugnote_view_status = VS_RELNOTE;
+		}
+		if ( access_has_bug_level( config_get( 'set_view_status_threshold' ), $f_bug_id ) ) {
 ?>
-			<input type="checkbox" id="bugnote_add_view_status" class="ace" name="private"
-				<?php check_checked( $t_default_bugnote_view_status, VS_PRIVATE ); ?> />
-			<label class="lbl" for="bugnote_add_view_status"> <?php echo lang_get( 'private' ) ?> </label>
+			<input type="radio" name="visible" value="public" <?php check_checked( $t_default_bugnote_view_status, VS_PUBLIC ); ?> />
 <?php
+			echo lang_get( 'public' );
+?>
+			<input type="radio" name="visible" value="private" <?php check_checked( $t_default_bugnote_view_status, VS_PRIVATE ); ?> />
+<?php
+			echo lang_get( 'private' );
+?>
+			<input type="radio" name="visible" value="relnote" <?php check_checked( $t_default_bugnote_view_status, VS_RELNOTE ); ?> />
+<?php
+			echo lang_get( 'relnote' );
 		} else {
 			echo get_enum_element( 'project_view_state', $t_default_bugnote_view_status );
 		}

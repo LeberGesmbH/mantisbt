@@ -111,13 +111,16 @@ function bug_activity_get_all( $p_bug_id, $p_include_attachments = true ) {
 			'id' => $t_bugnote->id,
 			'id_formatted' => bugnote_format_id( $t_bugnote->id ),
 			'user_id' => $t_bugnote->reporter_id,
-			'private' => $t_bugnote->view_state != VS_PUBLIC,
+			'private' => $t_bugnote->view_state == VS_PRIVATE,
+			'relnote' => $t_bugnote->view_state == VS_RELNOTE,
 			'style' => 'bugnote-note',
 			'attachments' => array(),
 			'note' => $t_bugnote );
 
 		if( $t_activity['private'] ) {
 			$t_activity['style'] .= ' bugnote-private';
+		} else if( $t_activity['relnote'] ) {
+			$t_activity['style'] .= ' bugnote-relnote';
 		} else {
 			$t_activity['style'] .= ' bugnote-public';
 		}

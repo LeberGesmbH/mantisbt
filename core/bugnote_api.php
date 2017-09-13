@@ -211,7 +211,7 @@ function bugnote_is_user_reporter( $p_bugnote_id, $p_user_id ) {
  * @param integer $p_bug_id          A bug identifier.
  * @param string  $p_bugnote_text    The bugnote text to add.
  * @param string  $p_time_tracking   Time tracking value - hh:mm string.
- * @param boolean $p_private         Whether bugnote is private.
+ * @param integer $p_viewstate         Whether bugnote is private, public or relnote.
  * @param integer $p_type            The bugnote type.
  * @param string  $p_attr            Bugnote Attribute.
  * @param integer $p_user_id         A user identifier.
@@ -223,7 +223,7 @@ function bugnote_is_user_reporter( $p_bugnote_id, $p_user_id ) {
  * @return boolean|integer false or indicating bugnote id added
  * @access public
  */
-function bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking = '0:00', $p_private = false, $p_type = BUGNOTE, $p_attr = '', $p_user_id = null, $p_send_email = true, $p_date_submitted = 0, $p_last_modified = 0, $p_skip_bug_update = false, $p_log_history = true ) {
+function bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking = '0:00', $p_viewstate = VS_PRIVATE, $p_type = BUGNOTE, $p_attr = '', $p_user_id = null, $p_send_email = true, $p_date_submitted = 0, $p_last_modified = 0, $p_skip_bug_update = false, $p_log_history = true ) {
 	$c_bug_id = (int)$p_bug_id;
 	$c_time_tracking = helper_duration_to_minutes( $p_time_tracking );
 	$c_type = (int)$p_type;
@@ -269,10 +269,10 @@ function bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking = '0:00', $p_
 	}
 
 	# Check for private bugnotes.
-	if( $p_private && access_has_bug_level( config_get( 'set_view_status_threshold' ), $p_bug_id, $p_user_id ) ) {
+	if( ($p_viewstate == VS_PRIVATE) && access_has_bug_level( config_get( 'set_view_status_threshold' ), $p_bug_id, $p_user_id ) ) {
 		$t_view_state = VS_PRIVATE;
 	} else {
-		$t_view_state = VS_PUBLIC;
+		$t_view_state = $p_viewstate;
 	}
 
 	# insert bugnote info
@@ -716,11 +716,13 @@ function bugnote_set_text( $p_bugnote_id, $p_bugnote_text ) {
  * @return boolean
  * @access public
  */
-function bugnote_set_view_state( $p_bugnote_id, $p_private ) {
+function bugnote_set_view_state( $p_bugnote_id, $p_private, $p_relnote ) {
 	$t_bug_id = bugnote_get_field( $p_bugnote_id, 'bug_id' );
 
 	if( $p_private ) {
 		$t_view_state = VS_PRIVATE;
+	} else if( $p_relnote ) {
+		$t_view_state = VS_RELNOTE;
 	} else {
 		$t_view_state = VS_PUBLIC;
 	}

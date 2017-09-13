@@ -1812,7 +1812,7 @@ function bug_set_field( $p_bug_id, $p_field_name, $p_value ) {
  * @access public
  * @uses database_api.php
  */
-function bug_assign( $p_bug_id, $p_user_id, $p_bugnote_text = '', $p_bugnote_private = false ) {
+function bug_assign( $p_bug_id, $p_user_id, $p_bugnote_text = '', $p_bugnote_private = false, $p_bugnote_relnote = false ) {
 	if( ( $p_user_id != NO_USER ) && !access_has_bug_level( config_get( 'handle_bug_threshold' ), $p_bug_id, $p_user_id ) ) {
 		trigger_error( ERROR_USER_DOES_NOT_HAVE_REQ_ACCESS );
 	}
@@ -1837,7 +1837,14 @@ function bug_assign( $p_bug_id, $p_user_id, $p_bugnote_text = '', $p_bugnote_pri
 		history_log_event_direct( $p_bug_id, 'handler_id', $h_handler_id, $p_user_id );
 
 		# Add bugnote if supplied ignore false return
-		$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, 0, $p_bugnote_private, 0, '', null, false );
+		if ($p_bugnote_private) {
+			$p_viewstate = VS_PRIVATE;
+		} else if ($p_bugnote_relnote) {
+			$p_viewstate = VS_RELNOTE;		
+		} else {
+			$p_viewstate = VS_PUBLIC;
+		}
+		$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, 0, $p_viewstate, 0, '', null, false );
 		bugnote_process_mentions( $p_bug_id, $t_bugnote_id, $p_bugnote_text );
 
 		# updated the last_updated date
@@ -1861,13 +1868,20 @@ function bug_assign( $p_bug_id, $p_user_id, $p_bugnote_text = '', $p_bugnote_pri
  * @return boolean (always true)
  * @access public
  */
-function bug_close( $p_bug_id, $p_bugnote_text = '', $p_bugnote_private = false, $p_time_tracking = '0:00' ) {
+function bug_close( $p_bug_id, $p_bugnote_text = '', $p_bugnote_private = false, $p_bugnote_relnote = false, $p_time_tracking = '0:00' ) {
 	$p_bugnote_text = trim( $p_bugnote_text );
 
 	# Add bugnote if supplied ignore a false return
 	# Moved bugnote_add before bug_set_field calls in case time_tracking_no_note is off.
 	# Error condition stopped execution but status had already been changed
-	$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking, $p_bugnote_private, 0, '', null, false );
+	if ($p_bugnote_private) {
+		$p_viewstate = VS_PRIVATE;
+	} else if ($p_bugnote_relnote) {
+		$p_viewstate = VS_RELNOTE;		
+	} else {
+		$p_viewstate = VS_PUBLIC;
+	}
+	$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking, $p_viewstate, 0, '', null, false );
 	bugnote_process_mentions( $p_bug_id, $t_bugnote_id, $p_bugnote_text );
 
 	bug_set_field( $p_bug_id, 'status', config_get( 'bug_closed_status_threshold' ) );
@@ -1891,14 +1905,21 @@ function bug_close( $p_bug_id, $p_bugnote_text = '', $p_bugnote_private = false,
  * @access public
  * @return boolean
  */
-function bug_resolve( $p_bug_id, $p_resolution, $p_fixed_in_version = '', $p_bugnote_text = '', $p_duplicate_id = null, $p_handler_id = null, $p_bugnote_private = false, $p_time_tracking = '0:00' ) {
+function bug_resolve( $p_bug_id, $p_resolution, $p_fixed_in_version = '', $p_bugnote_text = '', $p_duplicate_id = null, $p_handler_id = null, $p_bugnote_private = false, $p_bugnote_relnote = false, $p_time_tracking = '0:00' ) {
 	$c_resolution = (int)$p_resolution;
 	$p_bugnote_text = trim( $p_bugnote_text );
 
 	# Add bugnote if supplied
 	# Moved bugnote_add before bug_set_field calls in case time_tracking_no_note is off.
 	# Error condition stopped execution but status had already been changed
-	$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking, $p_bugnote_private, 0, '', null, false );
+	if ($p_bugnote_private) {
+		$p_viewstate = VS_PRIVATE;
+	} else if ($p_bugnote_relnote) {
+		$p_viewstate = VS_RELNOTE;		
+	} else {
+		$p_viewstate = VS_PUBLIC;
+	}
+	$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking, $p_viewstate, 0, '', null, false );
 	bugnote_process_mentions( $p_bug_id, $t_bugnote_id, $p_bugnote_text );
 
 	$t_duplicate = !is_blank( $p_duplicate_id ) && ( $p_duplicate_id != 0 );
@@ -1961,13 +1982,20 @@ function bug_resolve( $p_bug_id, $p_resolution, $p_fixed_in_version = '', $p_bug
  * @uses bugnote_api.php
  * @uses config_api.php
  */
-function bug_reopen( $p_bug_id, $p_bugnote_text = '', $p_time_tracking = '0:00', $p_bugnote_private = false ) {
+function bug_reopen( $p_bug_id, $p_bugnote_text = '', $p_time_tracking = '0:00', $p_bugnote_private = false, $p_bugnote_relnote = false ) {
 	$p_bugnote_text = trim( $p_bugnote_text );
 
 	# Add bugnote if supplied
 	# Moved bugnote_add before bug_set_field calls in case time_tracking_no_note is off.
 	# Error condition stopped execution but status had already been changed
-	$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking, $p_bugnote_private, 0, '', null, false );
+	if ($p_bugnote_private) {
+		$p_viewstate = VS_PRIVATE;
+	} else if ($p_bugnote_relnote) {
+		$p_viewstate = VS_RELNOTE;		
+	} else {
+		$p_viewstate = VS_PUBLIC;
+	}	
+	$t_bugnote_id = bugnote_add( $p_bug_id, $p_bugnote_text, $p_time_tracking, $p_viewstate, 0, '', null, false );
 	bugnote_process_mentions( $p_bug_id, $t_bugnote_id, $p_bugnote_text );
 
 	bug_set_field( $p_bug_id, 'status', config_get( 'bug_reopen_status' ) );

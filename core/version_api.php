@@ -469,7 +469,7 @@ function version_cache_array_rows( array $p_project_id_array ) {
  *                              setting ($g_subprojects_inherit_versions).
  * @return array Array of version rows (in array format)
  */
-function version_get_all_rows( $p_project_id, $p_released = null, $p_obsolete = false, $p_inherit = null ) {
+function version_get_all_rows( $p_project_id, $p_released = null, $p_obsolete = false, $p_inherit = null, $p_obsolete_later = false ) {
 	global $g_cache_versions, $g_cache_versions_project;
 
 	if(    $p_inherit
@@ -480,11 +480,13 @@ function version_get_all_rows( $p_project_id, $p_released = null, $p_obsolete = 
 		$t_project_ids[] = $p_project_id;
 	}
 
-	$t_is_cached = true;
-	foreach( $t_project_ids as $t_project_id ) {
-		if( !isset( $g_cache_versions_project[$t_project_id] ) ) {
-			$t_is_cached = false;
-			break;
+	if (!$p_obsolete_later) {
+		$t_is_cached = true;
+		foreach( $t_project_ids as $t_project_id ) {
+			if( !isset( $g_cache_versions_project[$t_project_id] ) ) {
+				$t_is_cached = false;
+				break;
+			}
 		}
 	}
 	if( $t_is_cached ) {
@@ -519,8 +521,11 @@ function version_get_all_rows( $p_project_id, $p_released = null, $p_obsolete = 
 		$t_query .= ' AND obsolete = ' . db_param();
 		$t_query_params[] = (bool)$p_obsolete;
 	}
-
-	$t_query .= ' ORDER BY date_order DESC';
+	if ($p_obsolete_later) {
+		$t_query .= " ORDER BY obsolete DESC, date_order DESC";
+	} else {
+		$t_query .= ' ORDER BY date_order DESC';
+	}
 
 	$t_result = db_query( $t_query, $t_query_params );
 	$t_rows = array();
