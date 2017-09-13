@@ -95,10 +95,12 @@ td.print-overdue    { font-weight: bold; }
 }
 
 .obsolete {
-	background-color: #ebeef3;
+	background-color: #ebeef3 !important;
 	color: #656565;
+	padding: 5px;
 }
 
 .unassigned {
-	background-color: #ff9e9e;
+	background-color: #ff9e9e !important;
+	padding: 5px;
 }

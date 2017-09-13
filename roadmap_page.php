@@ -207,6 +207,7 @@ function print_version(&$t_project_header_printed, $t_project_name, $t_project_i
 	$t_issue_ids = array();
 	$t_issue_parents = array();
 	$t_issue_handlers = array();
+	$div_open = false;
 
 	while( $t_row = db_fetch_array( $t_result ) ) {
 		# hide private bugs if user doesn't have access to view them.
@@ -265,6 +266,13 @@ function print_version(&$t_project_header_printed, $t_project_name, $t_project_i
 		}
 
 		if( !$t_version_header_printed ) {
+			if ($t_version_row['version'] == '') {
+				$div_open = true;
+				echo '<div class="unassigned">';
+			} else if ($t_version_row['obsolete']) {
+				$div_open = true;
+				echo '<div class="obsolete">';
+			}		
 			print_version_header( $t_version_row );
 			$t_version_header_printed = true;
 		}
@@ -340,6 +348,10 @@ function print_version(&$t_project_header_printed, $t_project_name, $t_project_i
 	if( $t_version_header_printed ) {
 		print_version_footer( $t_version_row,  $t_issues_resolved, $t_issues_planned, $t_progress);
 	}
+	if ($div_open) {
+		echo '</div>';
+		$div_open = false;
+	}	
 }
 
 $t_issues_found = false;
@@ -426,7 +438,7 @@ foreach( $t_project_ids as $t_project_id ) {
 
 	$t_resolved = config_get( 'bug_resolved_status_threshold' );
 
-	$t_version_rows = array_reverse( version_get_all_rows( $t_project_id ) );
+	$t_version_rows = array_reverse( version_get_all_rows( $t_project_id, null, null, null, true) );
 
 	# cache category info, but ignore the results for now
 	category_get_all_rows( $t_project_id );
@@ -443,16 +455,15 @@ foreach( $t_project_ids as $t_project_id ) {
 			continue;
 		}
 		
-		print_version($t_project_header_printed, $t_project_name, $t_project_id, $t_version_row, $t_can_view_private, $t_limit_reporters, false, $t_issues_found);
-		if (config_get( 'show_roadmap_unassigned')) {
-			$t_version_row = null;
-			$t_version_row['version'] = '';
-			$t_version_row['description'] = 'Not assigned';
-			$t_version_row['project_id'] = $t_project_id;
-			print_version($t_project_header_printed, $t_project_name, $t_project_id, $t_version_row, $t_can_view_private, $t_limit_reporters, true, $t_issues_found);
-		}
-		
+		print_version($t_project_header_printed, $t_project_name, $t_project_id, $t_version_row, $t_can_view_private, $t_limit_reporters, false, $t_issues_found);		
 	}
+	if (config_get( 'show_roadmap_unassigned')) {
+		$t_version_row = null;
+		$t_version_row['version'] = '';
+		$t_version_row['description'] = 'Not assigned';
+		$t_version_row['project_id'] = $t_project_id;
+		print_version($t_project_header_printed, $t_project_name, $t_project_id, $t_version_row, $t_can_view_private, $t_limit_reporters, true, $t_issues_found);
+	}	
 }
 
 if( !$t_issues_found ) {
